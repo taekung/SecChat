@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noble Secure Channel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lora&display=swap" rel="stylesheet">
+    <style>
+        /* --- Theme & Aesthetics --- */
+        :root {
+            --bg-main: #0a0e1a; /* สีพื้นหลังหลัก น้ำเงินเข้มเกือบดำ */
+            --bg-secondary: #151d33; /* สีพื้นหลังรอง */
+            --accent-gold: #cfa76e; /* สีทองสำหรับเน้น */
+            --text-primary: #e0e0e0; /* สีข้อความหลัก */
+            --text-secondary: #a0a0a0;
+        }
+
+        body {
+            font-family: 'Lora', serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1, h2, h3, button {
+            font-family: 'Cinzel', serif; /* ฟอนต์หัวข้อให้ความรู้สึกขลัง */
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: var(--bg-secondary);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-left: 1px solid #cfa76e44;
+            border-right: 1px solid #cfa76e44;
+        }
+
+        /* --- Setup Screen (สำหรับใส่รหัสลับ) --- */
+        #setup-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .noble-input {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--accent-gold);
+            color: var(--accent-gold);
+            font-size: 1.2rem;
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+        }
+        .noble-input:focus { outline: none; border-bottom-color: #fff; }
+
+        .noble-button {
+            background-color: var(--accent-gold);
+            color: var(--bg-main);
+            border: none;
+            padding: 10px 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .noble-button:hover { background-color: #e2c191; }
+
+        /* --- Chat Interface --- */
+        header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        #chat-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 8px;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .message.sent {
+            align-self: flex-end;
+            background-color: #2a3b66;
+            border: 1px solid var(--accent-gold);
+        }
+
+        .message.received {
+            align-self: flex-start;
+            background-color: #1f2a48;
+            border: 1px solid #4a5a88;
+        }
+
+        .message-meta {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* --- Input Area & Layered Emoji --- */
+        #input-area {
+            padding: 20px;
+            border-top: 1px solid #cfa76e44;
+            display: flex;
+            gap: 10px;
+            background-color: var(--bg-secondary);
+            position: relative;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            background-color: var(--bg-main);
+            border: 1px solid var(--accent-gold);
+            color: var(--text-primary);
+            border-radius: 4px;
+        }
+
+        /* Emoji Layers Panel */
+        #emoji-panel {
+            position: absolute;
+            bottom: 80px; /* อยู่เหนือ input area */
+            right: 20px;
+            background-color: var(--bg-main);
+            border: 1px solid var(--accent-gold);
+            width: 300px;
+            display: none; /* ซ่อนไว้ก่อน */
+            flex-direction: column;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+        }
+        #emoji-panel.active { display: flex; }
+
+        .emoji-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--accent-gold);
+        }
+        .emoji-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            background-color: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-family: 'Cinzel', serif;
+            font-size: 0.8rem;
+        }
+        .emoji-tab.active {
+            background-color: var(--accent-gold);
+            color: var(--bg-main);
+        }
+        .emoji-content {
+            padding: 10px;
+            display: none;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .emoji-content.active { display: grid; }
+        .emoji-btn {
+            font-size: 1.5rem;
+            cursor: pointer;
+            text-align: center;
+            padding: 5px;
+        }
+        .emoji-btn:hover { background-color: rgba(207, 167, 110, 0.2); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1>The Gilded Channel</h1>
+        <p style="color: var(--text-secondary);">Enter your shared secret passphrase to establish secure connection.</p>
+        <input type="password" id="secret-passphrase" class="noble-input" placeholder="Enter Secret Passphrase...">
+        <button id="enter-chat-btn" class="noble-button">ESTABLISH CONNECTION</button>
+    </div>
+
+    <div id="app-container">
+        <header>
+            <h2>SECURE COMMUNIQUÉ</h2>
+        </header>
+        
+        <div id="chat-window">
+            </div>
+
+        <div id="input-area">
+            <div id="emoji-panel">
+                <div class="emoji-tabs">
+                    <div class="emoji-tab active" data-target="layer-classic">Classic</div>
+                    <div class="emoji-tab" data-target="layer-noble">Noble</div>
+                    <div class="emoji-tab" data-target="layer-cryptic">Cryptic</div>
+                </div>
+                <div id="layer-classic" class="emoji-content active">
+                    <div class="emoji-btn">😀</div><div class="emoji-btn">😂</div><div class="emoji-btn">🙂</div><div class="emoji-btn">🤔</div><div class="emoji-btn">👍</div>
+                    <div class="emoji-btn">👎</div><div class="emoji-btn">❤️</div><div class="emoji-btn">👋</div><div class="emoji-btn">🙏</div><div class="emoji-btn">🤝</div>
+                </div>
+                <div id="layer-noble" class="emoji-content">
+                    <div class="emoji-btn">👑</div><div class="emoji-btn">🏛️</div><div class="emoji-btn">📜</div><div class="emoji-btn">✒️</div><div class="emoji-btn">⚜️</div>
+                    <div class="emoji-btn">🧐</div><div class="emoji-btn">🥂</div><div class="emoji-btn">🤫</div><div class="emoji-btn">💼</div><div class="emoji-btn">🤵</div>
+                </div>
+                <div id="layer-cryptic" class="emoji-content">
+                    <div class="emoji-btn">🔒</div><div class="emoji-btn">🔓</div><div class="emoji-btn">🗝️</div><div class="emoji-btn">👁️‍🗨️</div><div class="emoji-btn">🌚</div>
+                    <div class="emoji-btn">🤐</div><div class="emoji-btn">🧩</div><div class="emoji-btn">🕯️</div><div class="emoji-btn">🛡️</div><div class="emoji-btn">🗡️</div>
+                </div>
+            </div>
+
+            <button id="toggle-emoji" class="noble-button" style="padding: 10px;">📜</button>
+            <input type="text" id="message-input" placeholder="Type your encrypted message...">
+            <button id="send-btn" class="noble-button">SEND</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let derivedKey = null; // กุญแจสำหรับการเข้ารหัสที่จะถูกสร้างขึ้น
+
+        // --- Elements ---
+        const setupScreen = document.getElementById('setup-screen');
+        const passphraseInput = document.getElementById('secret-passphrase');
+        const enterChatBtn = document.getElementById('enter-chat-btn');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatWindow = document.getElementById('chat-window');
+        const toggleEmojiBtn = document.getElementById('toggle-emoji');
+        const emojiPanel = document.getElementById('emoji-panel');
+
+        // --- 1. Web Crypto API: Encryption Logic (ส่วนที่สำคัญที่สุด) ---
+
+        // ฟังก์ชันสร้างกุญแจจากรหัสผ่าน (PBKDF2 derivation)
+        // นี่คือการเปลี่ยนรหัสผ่านที่มนุษย์อ่านได้ ให้เป็นกุญแจเข้ารหัสที่ปลอดภัย
+        async function deriveKeyFromPassphrase(passphrase) {
+            const enc = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw", enc.encode(passphrase), { name: "PBKDF2" }, false, ["deriveBits", "deriveKey"]
+            );
+            // ใช้ salt คงที่สำหรับ demo นี้ (ใน production ควรเป็น random และแชร์กันอย่างปลอดภัย)
+            const salt = enc.encode("noble-secure-chat-salt"); 
+            
+            return window.crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt: salt,
+                    iterations: 100000, // จำนวนรอบการคำนวณ ยิ่งเยอะยิ่งปลอดภัยแต่ช้าลง
+                    hash: "SHA-256"
+                },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 }, // ใช้ AES-GCM 256-bit
+                true, // แนะนำให้เป็น false ใน production เพื่อไม่ให้ export กุญแจได้
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        // ฟังก์ชันเข้ารหัสข้อความ
+        async function encryptMessage(message, key) {
+            const enc = new TextEncoder();
+            const encoded = enc.encode(message);
+            // IV (Initialization Vector) ต้องสุ่มใหม่ทุกครั้งที่เข้ารหัส
+            const iv = window.crypto.getRandomValues(new Uint8Array(12)); 
+            
+            const ciphertext = await window.crypto.subtle.encrypt(
+                { name: "AES-GCM", iv: iv },
+                key,
+                encoded
+            );
+
+            // ส่งทั้ง IV และ ciphertext ไปยังเซิร์ฟเวอร์
+            return {
+                iv: Array.from(iv), // แปลงเป็น array ปกติเพื่อส่งผ่าน socket
+                ciphertext: Array.from(new Uint8Array(ciphertext))
+            };
+        }
+
+        // ฟังก์ชันถอดรหัสข้อความ
+        async function decryptMessage(encryptedData, key) {
+            try {
+                const iv = new Uint8Array(encryptedData.iv);
+                const ciphertext = new Uint8Array(encryptedData.ciphertext);
+                
+                const decrypted = await window.crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    key,
+                    ciphertext
+                );
+                
+                const dec = new TextDecoder();
+                return dec.decode(decrypted);
+            } catch (e) {
+                console.error("Decryption failed:", e);
+                return "⚠️ [Decryption Failed: Incorrect Key]";
+            }
+        }
+
+        // --- 2. Chat & UI Logic ---
+
+        // เข้าสู่แชทและสร้างกุญแจ
+        enterChatBtn.addEventListener('click', async () => {
+            const passphrase = passphraseInput.value;
+            if (passphrase.length < 4) { alert("Passphrase too short."); return; }
+            
+            enterChatBtn.textContent = "GENERATING KEYS...";
+            // สร้างกุญแจจากรหัสผ่านที่ใส่เข้ามา
+            derivedKey = await deriveKeyFromPassphrase(passphrase);
+            
+            setupScreen.style.display = 'none'; // ซ่อนหน้าจอตั้งค่า
+        });
+
+        // ส่งข้อความ
+        sendBtn.addEventListener('click', async () => {
+            const msg = messageInput.value;
+            if (!msg || !derivedKey) return;
+
+            // 1. เข้ารหัสข้อความก่อน
+            const encryptedPayload = await encryptMessage(msg, derivedKey);
+            
+            // 2. ส่งก้อนข้อมูลที่เข้ารหัสแล้วไปหาเซิร์ฟเวอร์
+            socket.emit('chat message', encryptedPayload);
+            
+            messageInput.value = '';
+            emojiPanel.classList.remove('active'); // ปิด emoji panel หลังส่ง
+        });
+
+        // รับข้อความจากเซิร์ฟเวอร์
+        socket.on('chat message', async (encryptedPayload) => {
+            if (!derivedKey) return; // ถ้ายังไม่มีกุญแจ ไม่ต้องทำอะไร
+
+            // 1. ถอดรหัสข้อความที่ได้รับ
+            const decryptedMsg = await decryptMessage(encryptedPayload, derivedKey);
+
+            // 2. แสดงผล
+            addMessageToUI(decryptedMsg, 'received');
+        });
+
+        function addMessageToUI(msg, type) {
+            const div = document.createElement('div');
+            div.classList.add('message', type);
+            div.innerHTML = `
+                <span class="message-meta">${type === 'sent' ? 'You' : 'Encrypted Peer'}</span>
+                ${msg}
+            `;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // --- 3. Layered Emoji Logic ---
+        toggleEmojiBtn.addEventListener('click', () => {
+            emojiPanel.classList.toggle('active');
+        });
+
+        // จัดการการคลิก Tab เปลี่ยนชั้นอิโมจิ
+        document.querySelectorAll('.emoji-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                // 1. เอา active ออกจาก tabs ทั้งหมด
+                document.querySelectorAll('.emoji-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.emoji-content').forEach(c => c.classList.remove('active'));
+                
+                // 2. ใส่ active ให้ tab ที่ถูกคลิก
+                e.target.classList.add('active');
+                
+                // 3. แสดงเนื้อหาที่ตรงกับ target ของ tab
+                const targetId = e.target.getAttribute('data-target');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        // จัดการการคลิกเลือกอิโมจิ
+        document.querySelectorAll('.emoji-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                messageInput.value += e.target.textContent;
+            });
+        });
+
+        // กด Enter เพื่อส่ง
+        messageInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') sendBtn.click();
+        });
+
+    </script>
+</body>
+</html>
